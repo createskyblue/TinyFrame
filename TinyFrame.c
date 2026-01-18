@@ -667,7 +667,7 @@ void _TF_FN TF_AcceptChar(TinyFrame *tf, unsigned char c)
                 CKSUM_RESET(tf->cksum); // 开始收集负载
 
                 if (tf->len > TF_MAX_PAYLOAD_RX) {
-                    TF_Error("接收负载过长：%d", (int)tf->len);
+                    TF_Error("接收负载过长：%d > %d", (int)tf->len, TF_MAX_PAYLOAD_RX);
                     // 错误 - 帧太长。消费但不存储。
                     tf->discard_data = true;
                 }
