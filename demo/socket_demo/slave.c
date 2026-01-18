@@ -1,5 +1,5 @@
 //
-// Created by MightyPork on 2017/10/15.
+// 由 MightyPork 于 2017/10/15 创建。
 //
 
 #include <stdio.h>
@@ -20,12 +20,12 @@ TF_Result replyListener(TinyFrame *tf, TF_Msg *msg)
     msg->len = (TF_LEN) strlen((const char *) msg->data);
     TF_Respond(tf, msg);
 
-    // unsolicited reply - will not be handled by the ID listener, which is already gone
+    // 未经请求的回复 - 不会被 ID 监听器处理，它已经消失了
     msg->data = (const uint8_t *) "SPAM";
     msg->len = 5;
     TF_Respond(tf, msg);
 
-    // unrelated message
+    // 不相关的消息
     TF_SendSimple(tf, 77, (const uint8_t *) "NAZDAR", 7);
     return TF_STAY;
 }

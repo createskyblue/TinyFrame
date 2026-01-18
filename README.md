@@ -1,60 +1,41 @@
 # TinyFrame
 
-TinyFrame is a simple library for building and parsing data frames to be sent 
-over a serial interface (e.g. UART, telnet, socket). The code is written to build with 
-`--std=gnu99` and mostly compatible with `--std=gnu89`.
+TinyFrame 是一个用于构建和解析通过串行接口（如 UART、telnet、socket）发送的数据帧的简单库。代码编写为使用 `--std=gnu99` 构建，并且大部分兼容 `--std=gnu89`。
 
-The library provides a high level interface for passing messages between the two peers.
-Multi-message sessions, response listeners, checksums, timeouts are all handled by the library.
+该库提供了一个高级接口，用于在对等方之间传递消息。多消息会话、响应监听器、校验和、超时都由库处理。
 
-TinyFrame is suitable for a wide range of applications, including inter-microcontroller 
-communication, as a protocol for FTDI-based PC applications or for messaging through
-UDP packets.
+TinyFrame 适用于广泛的应用，包括微控制器之间的通信、基于 FTDI 的 PC 应用程序协议或通过 UDP 数据包的消息传递。
 
-The library lets you register listeners (callback functions) to wait for (1) any frame, (2)
-a particular frame Type, or (3) a specific message ID. This high-level API is general 
-enough to implement most communication patterns.
+该库允许您注册监听器（回调函数）以等待（1）任何帧、（2）特定的帧类型或（3）特定的消息 ID。这个高级 API 通用性足以实现大多数通信模式。
 
-TinyFrame is re-entrant and supports creating multiple instances with the limitation
-that their structure (field sizes and checksum type) is the same. There is a support
-for adding multi-threaded access to a shared instance using a mutex.
+TinyFrame 是可重入的，支持创建多个实例，限制是它们的结构（字段大小和校验和类型）必须相同。支持使用互斥锁添加对共享实例的多线程访问。
 
-TinyFrame also comes with (optional) helper functions for building and parsing message
-payloads, those are provided in the `utils/` folder.
+TinyFrame 还附带（可选的）辅助函数，用于构建和解析消息负载，这些函数在 `utils/` 文件夹中提供。
 
-## Ports
+## 移植
 
-TinyFrame has been ported to mutiple languages:
+TinyFrame 已被移植到多种语言：
 
-- The reference C implementation is in this repo
-- Python port - [MightyPork/PonyFrame](https://github.com/MightyPork/PonyFrame)
-- Rust port - [cpsdqs/tinyframe-rs](https://github.com/cpsdqs/tinyframe-rs)
-- JavaScript port - [cpsdqs/tinyframe-js](https://github.com/cpsdqs/tinyframe-js)
+- 参考的 C 实现在此存储库中
+- Python 移植版本 - [MightyPork/PonyFrame](https://github.com/MightyPork/PonyFrame)
+- Rust 移植版本 - [cpsdqs/tinyframe-rs](https://github.com/cpsdqs/tinyframe-rs)
+- JavaScript 移植版本 - [cpsdqs/tinyframe-js](https://github.com/cpsdqs/tinyframe-js)
 
-Please note most of the ports are experimental and may exhibit various bugs or missing 
-features. Testers are welcome :)
+请注意，大多数移植版本都是实验性的，可能会出现各种错误或缺少功能。欢迎测试者：）
 
-## Functional overview
+## 功能概述
 
-The basic functionality of TinyFrame is explained here. For particlars, such as the
-API functions, it's recommended to read the doc comments in the header file.
+这里解释了 TinyFrame 的基本功能。对于详细信息，如 API 函数，建议阅读头文件中的文档注释。
 
-### Structure of a frame
+### 帧结构
 
-Each frame consists of a header and a payload. Both parts can be protected by a checksum, 
-ensuring a frame with a malformed header (e.g. with a corrupted length field) or a corrupted
-payload is rejected.
+每个帧由头部和负载组成。两个部分都可以受到校验和保护，确保格式错误的头部（例如，损坏的长度字段）或损坏的负载的帧被拒绝。
 
-The frame header contains a frame ID and a message type. Frame ID is incremented with each
-new message. The highest bit of the ID field is fixed to 1 and 0 for the two peers, 
-avoiding a conflict.
+帧头包含帧 ID 和消息类型。帧 ID 随每条新消息递增。ID 字段的最高位对于两个对等方固定为 1 和 0，以避免冲突。
 
-Frame ID can be re-used in a response to tie the two messages together. Values of the
-type field are user defined.
+可以在响应中重用帧 ID，将两条消息联系在一起。类型字段的值由用户定义。
 
-All fields in the frame have a configurable size. By changing a field in the config 
-file, such as `TF_LEN_BYTES` (1, 2 or 4), the library seamlessly switches between `uint8_t`,
-`uint16_t` and `uint32_t` for all functions working with the field. 
+帧中的所有字段都有可配置的大小。通过更改配置文件中的字段，如 `TF_LEN_BYTES`（1、2 或 4），库在使用该字段的所有函数之间无缝切换 `uint8_t`、`uint16_t` 和 `uint32_t`。
 
 ```
 ,-----+-----+-----+------+------------+- - - -+-------------,
@@ -62,114 +43,88 @@ file, such as `TF_LEN_BYTES` (1, 2 or 4), the library seamlessly switches betwee
 | 0-1 | 1-4 | 1-4 | 1-4  | 0-4        | ...   | 0-4         | <- size (bytes)
 '-----+-----+-----+------+------------+- - - -+-------------'
 
-SOF ......... start of frame, usually 0x01 (optional, configurable)
-ID  ......... the frame ID (MSb is the peer bit)
-LEN ......... number of data bytes in the frame
-TYPE ........ message type (used to run Type Listeners, pick any values you like)
-HEAD_CKSUM .. header checksum
+SOF ......... 帧开始，通常是 0x01（可选，可配置）
+ID  ......... 帧 ID（最高位是对等方位）
+LEN ......... 帧中的数据字节数
+TYPE ........ 消息类型（用于运行类型监听器，选择任何您喜欢的值）
+HEAD_CKSUM .. 头部校验和
 
-DATA ........ LEN bytes of data
-DATA_CKSUM .. data checksum (left out if LEN is 0)
+DATA ........ LEN 字节的数据
+DATA_CKSUM .. 数据校验和（如果 LEN 为 0，则省略）
 ```
 
-### Message listeners
+### 消息监听器
 
-TinyFrame is based on the concept of message listeners. A listener is a callback function 
-waiting for a particular message Type or ID to be received.
+TinyFrame 基于消息监听器的概念。监听器是等待接收特定消息类型或 ID 的回调函数。
 
-There are 3 listener types, in the order of precedence:
+有 3 种监听器类型，按优先级排序：
  
-- **ID listeners** - waiting for a response
-- **Type listeners** - waiting for a message of the given Type field
-- **Generic listeners** - fallback
+- **ID 监听器** - 等待响应
+- **类型监听器** - 等待给定类型字段的消息
+- **通用监听器** - 回退
 
-ID listeners can be registered automatically when sending a message. All listeners can 
-also be registered and removed manually. 
+发送消息时可以自动注册 ID 监听器。所有监听器也可以手动注册和删除。
 
-ID listeners are used to receive the response to a request. When registerign an ID 
-listener, it's possible to attach custom user data to it that will be made available to 
-the listener callback. This data (`void *`) can be any kind of application context 
-variable.
+ID 监听器用于接收对请求的响应。注册 ID 监听器时，可以附加自定义用户数据，该数据将可供监听器回调使用。此数据（`void *`）可以是任何类型的应用程序上下文变量。
 
-ID listeners can be assigned a timeout. When a listener expires, before it's removed,
-the callback is fired with NULL payload data in order to let the user `free()` any
-attached userdata. This happens only if the userdata is not NULL.
+可以为 ID 监听器分配超时。当监听器过期时，在它被移除之前，回调将使用 NULL 负载数据触发，以便让用户 `free()` 任何附加的 userdata。仅当 userdata 不为 NULL 时才会发生这种情况。
 
-Listener callbacks return values of the `TF_Result` enum:
+监听器回调返回 `TF_Result` 枚举的值：
 
-- `TF_CLOSE` - message accepted, remove the listener
-- `TF_STAY` - message accepted, stay registered
-- `TF_RENEW` - sameas `TF_STAY`, but the ID listener's timeout is renewed
-- `TF_NEXT` - message NOT accepted, keep the listener and pass the message to the next 
-              listener capable of handling it.
+- `TF_CLOSE` - 消息已接受，移除监听器
+- `TF_STAY` - 消息已接受，保持注册状态
+- `TF_RENEW` - 与 `TF_STAY` 相同，但 ID 监听器的超时被续期
+- `TF_NEXT` - 消息未接受，保持监听器并将消息传递给下一个能够处理它的监听器。
 
-### Data buffers, multi-part frames
+### 数据缓冲区、多部分帧
 
-TinyFrame uses two data buffers: a small transmit buffer and a larger receive buffer.
-The transmit buffer is used to prepare bytes to send, either all at once, or in a 
-circular fashion if the buffer is not large enough. The buffer must only contain the entire 
-frame header, so e.g. 32 bytes should be sufficient for short messages.
+TinyFrame 使用两个数据缓冲区：一个小的发送缓冲区和一个较大的接收缓冲区。
+发送缓冲区用于准备要发送的字节，可以一次性发送，如果缓冲区不够大，则可以循环方式发送。缓冲区只需要包含完整的帧头，因此例如 32 字节应该足以用于短消息。
 
-Using the `*_Multipart()` sending functions, it's further possible to split the frame 
-header and payload to multiple function calls, allowing the applciation to e.g. generate
-the payload on-the-fly.
+使用 `*_Multipart()` 发送函数，还可以将帧头和负载拆分为多个函数调用，允许应用程序例如即时生成负载。
 
-In contrast to the transmit buffer, the receive buffer must be large enough to contain 
-an entire frame. This is because the final checksum must be verified before the frame 
-is handled.
+与发送缓冲区相反，接收缓冲区必须足够大以包含整个帧。这是因为在处理帧之前必须验证最终校验和。
  
-If frames larger than the possible receive buffer size are required (e.g. in embedded 
-systems with small RAM), it's recommended to implement a multi-message transport mechanism
-at a higher level and send the data in chunks.
+如果需要大于可能接收缓冲区大小的帧（例如在 RAM 较小的嵌入式系统中），建议在更高级别实现多消息传输机制，并分块发送数据。
 
-## Usage Hints
+## 使用提示
 
-- All TinyFrame functions, typedefs and macros start with the `TF_` prefix.
-- Both peers must include the library with the same config parameters
-- See `TF_Integration.example.c` and `TF_Config.example.c` for reference how to configure and integrate the library.
-- DO NOT modify the library files, if possible. This makes it easy to upgrade.
-- Start by calling `TF_Init()` with `TF_MASTER` or `TF_SLAVE` as the argument. This creates a handle.
-  Use `TF_InitStatic()` to avoid the use of malloc(). 
-- If multiple instances are used, you can tag them using the `tf.userdata` / `tf.usertag` field.
-- Implement `TF_WriteImpl()` - declared at the bottom of the header file as `extern`.
-  This function is used by `TF_Send()` and others to write bytes to your UART (or other physical layer).
-  A frame can be sent in it's entirety, or in multiple parts, depending on its size.
-- Use TF_AcceptChar(tf, byte) to give read data to TF. TF_Accept(tf, bytes, count) will accept mulitple bytes.  
-- If you wish to use timeouts, periodically call `TF_Tick()`. The calling period determines 
-  the length of 1 tick. This is used to time-out the parser in case it gets stuck 
-  in a bad state (such as receiving a partial frame) and can also time-out ID listeners.
-- Bind Type or Generic listeners using `TF_AddTypeListener()` or `TF_AddGenericListener()`.
-- Send a message using `TF_Send()`, `TF_Query()`, `TF_SendSimple()`, `TF_QuerySimple()`.
-  Query functions take a listener callback (function pointer) that will be added as 
-  an ID listener and wait for a response.
-- Use the `*_Multipart()` variant of the above sending functions for payloads generated in
-  multiple function calls. The payload is sent afterwards by calling `TF_Multipart_Payload()`
-  and the frame is closed by `TF_Multipart_Close()`.
-- If custom checksum implementation is needed, select `TF_CKSUM_CUSTOM8`, 16 or 32 and 
-  implement the three checksum functions.
-- To reply to a message (when your listener gets called), use `TF_Respond()`
-  with the msg object you received, replacing the `data` pointer (and `len`) with a response.
-- At any time you can manually reset the message parser using `TF_ResetParser()`. It can also 
-  be reset automatically after a timeout configured in the config file.
+- 所有 TinyFrame 函数、typedef 和宏都以 `TF_` 前缀开头。
+- 两个对等方必须使用相同的配置参数包含库
+- 参考 `TF_Integration.example.c` 和 `TF_Config.example.c` 了解如何配置和集成库。
+- 如果可能，不要修改库文件。这使得升级变得容易。
+- 通过调用 `TF_Init()` 并使用 `TF_MASTER` 或 `TF_SLAVE` 作为参数开始。这将创建一个句柄。
+  使用 `TF_InitStatic()` 避免使用 malloc()。 
+- 如果使用多个实例，可以使用 `tf.userdata` / `tf.usertag` 字段标记它们。
+- 实现 `TF_WriteImpl()` - 在头文件底部声明为 `extern`。
+  此函数由 `TF_Send()` 和其他函数用于将字节写入您的 UART（或其他物理层）。
+  帧可以整体发送，也可以分多次发送，具体取决于其大小。
+- 使用 TF_AcceptChar(tf, byte) 将读取数据提供给 TF。TF_Accept(tf, bytes, count) 将接受多个字节。  
+- 如果希望使用超时，请定期调用 `TF_Tick()`。调用周期确定 1 个 tick 的长度。这用于在解析器陷入错误状态（例如接收部分帧）时使解析器超时，也可以使 ID 监听器超时。
+- 使用 `TF_AddTypeListener()` 或 `TF_AddGenericListener()` 绑定类型或通用监听器。
+- 使用 `TF_Send()`、`TF_Query()`、`TF_SendSimple()`、`TF_QuerySimple()` 发送消息。
+  查询函数采用监听器回调（函数指针），该指针将被添加为 ID 监听器并等待响应。
+- 使用上述发送函数的 `*_Multipart()` 变体以在多个函数调用中生成的负载。
+  然后通过调用 `TF_Multipart_Payload()` 发送负载，并通过 `TF_Multipart_Close()` 关闭帧。
+- 如果需要自定义校验和实现，请选择 `TF_CKSUM_CUSTOM8`、16 或 32 并实现三个校验和函数。
+- 要回复消息（当您的监听器被调用时），使用 `TF_Respond()`
+  和您收到的 msg 对象，用响应替换 `data` 指针（以及 `len`）。
+- 您可以随时使用 `TF_ResetParser()` 手动重置消息解析器。它还可以在配置文件中配置的超时后自动重置。
 
-### Gotchas to look out for
+### 需要注意的事项
 
-- If any userdata is attached to an ID listener with a timeout, when the listener times out,
-  it will be called with NULL `msg->data` to let the user free the userdata. Therefore 
-  it's needed to check `msg->data` before proceeding to handle the message.
-- If a multi-part frame is being sent, the Tx part of the library is locked to prevent 
-  concurrent access. The frame must be fully sent and closed before attempting to send
-  anything else. 
-- If multiple threads are used, don't forget to implement the mutex callbacks to avoid 
-  concurrent access to the Tx functions. The default implementation is not entirely thread
-  safe, as it can't rely on platform-specific resources like mutexes or atomic access. 
-  Set `TF_USE_MUTEX` to `1` in the config file.
+- 如果将任何 userdata 附加到具有超时的 ID 监听器，当监听器超时时，
+  它将使用 NULL `msg->data` 被调用，以便让用户释放 userdata。因此
+  需要在继续处理消息之前检查 `msg->data`。
+- 如果正在发送多部分帧，则库的 Tx 部分被锁定以防止并发访问。
+  必须完全发送并关闭帧，然后才能尝试发送其他任何内容。 
+- 如果使用多个线程，请别忘了实现互斥锁回调以避免并发访问 Tx 函数。默认实现不是完全线程安全的，因为它不能依赖平台特定的资源，如互斥锁或原子访问。
+  在配置文件中将 `TF_USE_MUTEX` 设置为 `1`。
 
-### Examples
+### 示例
 
-You'll find various examples in the `demo/` folder. Each example has it's own Makefile,
-read it to see what options are available.
+您将在 `demo/` 文件夹中找到各种示例。每个示例都有自己的 Makefile，
+阅读它以查看有哪些选项。
 
-The demos are written for Linux, some using sockets and `clone()` for background processing.
-They try to simulate real TinyFrame behavior in an embedded system with asynchronous 
-Rx and Tx. If you can't run the demos, the source files are still good as examples.
+演示是为 Linux 编写的，一些使用套接字和 `clone()` 进行后台处理。
+它们尝试模拟嵌入式系统中具有异步 Rx 和 Tx 的真实 TinyFrame 行为。如果您无法运行演示，源文件仍然是很好的示例。

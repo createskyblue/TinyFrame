@@ -1,5 +1,5 @@
 //
-// Created by MightyPork on 2017/10/15.
+// 由 MightyPork 于 2017/10/15 创建。
 //
 
 #ifndef TF_UTILS_H
@@ -8,16 +8,16 @@
 #include <stdio.h>
 #include "../TinyFrame.h"
 
-/** pointer to unsigned char */
+/** 指向 unsigned char 的指针 */
 typedef unsigned char* pu8;
 
 /**
- * Dump a binary frame as hex, dec and ASCII
+ * 以十六进制、十进制和 ASCII 格式转储二进制帧
  */
 void dumpFrame(const uint8_t *buff, size_t len);
 
 /**
- * Dump message metadata (not the content)
+ * 转储消息元数据（不是内容）
  *
  * @param msg
  */

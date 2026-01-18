@@ -1,5 +1,5 @@
 //
-// Created by MightyPork on 2017/10/15.
+// 由 MightyPork 于 2017/10/15 创建。
 //
 
 #include <stdio.h>

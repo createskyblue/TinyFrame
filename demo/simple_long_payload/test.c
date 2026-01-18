@@ -8,29 +8,29 @@ TinyFrame *demo_tf;
 extern const char *romeo;
 
 /**
- * This function should be defined in the application code.
- * It implements the lowest layer - sending bytes to UART (or other)
+ * 此函数应在应用程序代码中定义。
+ * 它实现最底层 - 将字节发送到 UART（或其他）
  */
 void TF_WriteImpl(TinyFrame *tf, const uint8_t *buff, uint32_t len)
 {
     printf("--------------------\n");
-    printf("\033[32mTF_WriteImpl - sending frame:\033[0m\n");
+    printf("\033[32mTF_WriteImpl - 发送帧:\033[0m\n");
     dumpFrame(buff, len);
 
-    // Send it back as if we received it
+    // 将其发回，就像我们接收到它一样
     TF_Accept(tf, buff, len);
 }
 
-/** An example listener function */
+/** 示例监听器函数 */
 TF_Result myListener(TinyFrame *tf, TF_Msg *msg)
 {
     (void)tf;
     dumpFrameInfo(msg);
     if (strcmp((const char *) msg->data, romeo) == 0) {
-        printf("FILE TRANSFERRED OK!\r\n");
+        printf("文件传输成功！\r\n");
     }
     else {
-        printf("FAIL!!!!\r\n");
+        printf("失败！！！！\r\n");
     }
     return TF_STAY;
 }
@@ -39,11 +39,11 @@ void main(void)
 {
     TF_Msg msg;
 
-    // Set up the TinyFrame library
-    demo_tf = TF_Init(TF_MASTER); // 1 = master, 0 = slave
+    // 设置 TinyFrame 库
+    demo_tf = TF_Init(TF_MASTER); // 1 = 主站, 0 = 从站
     TF_AddGenericListener(demo_tf, myListener);
 
-    printf("------ Simulate sending a LOOONG message --------\n");
+    printf("------ 模拟发送超长消息 --------\n");
 
     TF_ClearMsg(&msg);
     msg.type = 0x22;

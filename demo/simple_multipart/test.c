@@ -8,29 +8,29 @@ TinyFrame *demo_tf;
 extern const char *romeo;
 
 /**
- * This function should be defined in the application code.
- * It implements the lowest layer - sending bytes to UART (or other)
+ * 此函数应在应用程序代码中定义。
+ * 它实现最底层 - 将字节发送到 UART（或其他）
  */
 void TF_WriteImpl(TinyFrame *tf, const uint8_t *buff, uint32_t len)
 {
     printf("--------------------\n");
-    printf("\033[32mTF_WriteImpl - sending frame:\033[0m\n");
+    printf("\033[32mTF_WriteImpl - 发送帧:\033[0m\n");
     dumpFrame(buff, len);
 
-    // Send it back as if we received it
+    // 将其发回，就像我们接收到它一样
     TF_Accept(tf, buff, len);
 }
 
-/** An example listener function */
+/** 示例监听器函数 */
 TF_Result myListener(TinyFrame *tf, TF_Msg *msg)
 {
     (void)tf;
     dumpFrameInfo(msg);
     if (strcmp((const char *) msg->data, romeo) == 0) {
-        printf("FILE TRANSFERRED OK!\r\n");
+        printf("文件传输成功！\r\n");
     }
     else {
-        printf("FAIL!!!!\r\n");
+        printf("失败！！！！\r\n");
     }
     return TF_STAY;
 }
@@ -39,22 +39,22 @@ void main(void)
 {
     TF_Msg msg;
 
-    // Set up the TinyFrame library
-    demo_tf = TF_Init(TF_MASTER); // 1 = master, 0 = slave
+    // 设置 TinyFrame 库
+    demo_tf = TF_Init(TF_MASTER); // 1 = 主站, 0 = 从站
     TF_AddGenericListener(demo_tf, myListener);
 
-    printf("------ Simulate sending a LOOONG message --------\n");
+    printf("------ 模拟发送超长消息 --------\n");
 
-    // We prepare a message without .data but with a set .len
+    // 我们准备一个没有 .data 但有设置 .len 的消息
     TF_ClearMsg(&msg);
     msg.type = 0x22;
     msg.len = (TF_LEN) strlen(romeo);
     
-    // Start the multipart frame
+    // 启动多部分帧
     TF_Send_Multipart(demo_tf, &msg);
     
-    // Now we send the payload in as many pieces as we like.
-    // Careful - TF transmitter is locked until we close the multipart frame
+    // 现在我们将负载分成任意数量的部分发送。
+    // 注意 - TF 发送器被锁定，直到我们关闭多部分帧
     
     uint32_t remain = strlen(romeo);
     const uint8_t* toSend = (const uint8_t*)romeo;
@@ -62,14 +62,14 @@ void main(void)
     while (remain > 0) {
       uint32_t chunk = (remain>16) ? 16 : remain;
       
-      // Send a piece
+      // 发送一部分
       TF_Multipart_Payload(demo_tf, toSend, chunk);
       
       remain -= chunk;
       toSend += chunk;
     }
     
-    // Done, close
+    // 完成，关闭
     TF_Multipart_Close(demo_tf);
 }
 

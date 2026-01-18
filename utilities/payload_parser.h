@@ -2,22 +2,22 @@
 #define PAYLOAD_PARSER_H
 
 /**
- * PayloadParser, part of the TinyFrame utilities collection
+ * PayloadParser，TinyFrame 工具集合的一部分
  * 
- * (c) Ondřej Hruška, 2016-2017. MIT license.
+ * (c) Ondřej Hruška, 2016-2017. MIT 许可证。
  * 
- * This module helps you with parsing payloads (not only from TinyFrame).
+ * 此模块帮助你解析负载（不仅来自 TinyFrame）。
  * 
- * The parser supports big and little-endian which is selected when 
- * initializing it or by accessing the bigendian struct field.
+ * 解析器支持在初始化时选择或通过访问
+ * bigendian 结构字段选择的大端和小端序。
  *
- * The parser performs bounds checking and calls the provided handler when 
- * the requested read doesn't have enough data. Use the callback to take
- * appropriate action, e.g. report an error.
+ * 解析器执行边界检查，当请求的读取
+ * 没有足够数据时调用提供的处理程序。使用处理程序
+ * 采取适当的操作，例如报告错误。
  * 
- * If the handler function is not defined, the pb->ok flag is set to false
- * (use this to check for success), and further reads won't have any effect 
- * and always result in 0 or empty array.
+ * 如果未定义处理程序函数，则将 pb->ok 标志设置为 false
+ * （使用它来检查成功），并且进一步的读取不会产生任何效果
+ * 并且总是返回 0 或空数组。
  */
 
 #include <stdint.h>
@@ -28,114 +28,114 @@
 typedef struct PayloadParser_ PayloadParser;
 
 /**
- * Empty buffer handler. 
+ * 空缓冲区处理程序。 
  * 
- * 'needed' more bytes should be read but the end was reached.
+ * 'needed' 应该读取更多字节但已达到末尾。
  * 
- * Return true if the problem was solved (e.g. new data loaded into 
- * the buffer and the 'current' pointer moved to the beginning).
+ * 如果问题已解决则返回 true（例如：新数据已加载到
+ * 缓冲区中，并且 'current' 指针移动到开头）。
  *  
- * If false is returned, the 'ok' flag on the struct is set to false
- * and all following reads will fail / return 0.
+ * 如果返回 false，则将结构体上的 'ok' 标志设置为 false
+ * 并且所有后续的读取都将失败 / 返回 0。
  */
 typedef bool (*pp_empty_handler)(PayloadParser *pp, uint32_t needed);
 
 struct PayloadParser_ {
-    const uint8_t *start;   //!< Pointer to the beginning of the buffer
-    const uint8_t *current; //!< Pointer to the next byte to be read
-    const uint8_t *end;     //!< Pointer to the end of the buffer (start + length)
-    pp_empty_handler empty_handler; //!< Callback for buffer underrun
-    bool bigendian;   //!< Flag to use big-endian parsing
-    bool ok;          //!< Indicates that all reads were successful
+    const uint8_t *start;   //!< 指向缓冲区开头的指针
+    const uint8_t *current; //!< 指向下一个要读取的字节的指针
+    const uint8_t *end;     //!< 指向缓冲区末尾的指针（start + length）
+    pp_empty_handler empty_handler; //!< 缓冲区不足的回调
+    bool bigendian;   //!< 使用大端序解析的标志
+    bool ok;          //!< 表示所有读取都成功
 };
 
-// --- initializer helper macros ---
+// --- 初始化辅助宏 ---
 
-/** Start the parser. */
-#define pp_start_e(buf, length, bigendian, empty_handler) ((PayloadParser){buf, buf, (buf)+(length), empty_handler, bigendian, 1})
+/** 启动解析器。 */
+#define pp_start_e(buf, length, bigendian, empty_handler) ((PayloadParser){buf, buf, (buf)+(length), empty_handler, bigendian,1})
 
-/** Start the parser in big-endian mode */
-#define pp_start_be(buf, length, empty_handler) pp_start_e(buf, length, 1, empty_handler)
+/** 以大端序模式启动解析器 */
+#define pp_start_be(buf, length, empty_handler) pp_start_e(buf, length,1, empty_handler)
 
-/** Start the parser in little-endian mode */
-#define pp_start_le(buf, length, empty_handler) pp_start_e(buf, length, 0, empty_handler)
+/** 以小端序模式启动解析器 */
+#define pp_start_le(buf, length, empty_handler) pp_start_e(buf, length,0, empty_handler)
 
-/** Start the parser in little-endian mode (default) */
+/** 以小端序模式启动解析器（默认） */
 #define pp_start(buf, length, empty_handler) pp_start_le(buf, length, empty_handler)
 
-// --- utilities ---
+// --- 工具函数 ---
 
-/** Get remaining length */
+/** 获取剩余长度 */
 #define pp_length(pp) ((pp)->end - (pp)->current)
 
-/** Reset the current pointer to start */
+/** 将当前指针重置为开头 */
 #define pp_rewind(pp) do { pp->current = pp->start; } while (0)
 
 
 /**
- * @brief Get the remainder of the buffer.
+ * @brief 获取缓冲区的剩余部分。
  *
- * Returns NULL and sets 'length' to 0 if there are no bytes left.
+ * 如果没有剩余字节，则返回 NULL 并将 'length' 设置为 0。
  *
  * @param pp
- * @param length : here the buffer length will be stored. NULL to do not store.
- * @return the remaining portion of the input buffer
+ * @param length ：此处将存储缓冲区长度。NULL 表示不存储。
+ * @return 输入缓冲区的剩余部分
  */
 const uint8_t *pp_tail(PayloadParser *pp, uint32_t *length);
 
-/** Read uint8_t from the payload. */
+/** 从负载中读取 uint8_t。 */
 uint8_t pp_u8(PayloadParser *pp);
 
-/** Read bool from the payload. */
+/** 从负载中读取布尔值。 */
 static inline int8_t pp_bool(PayloadParser *pp)
 {
     return pp_u8(pp) != 0;
 }
 
-/** Skip bytes */
+/** 跳过字节 */
 void pp_skip(PayloadParser *pp, uint32_t num);
 
-/** Read uint16_t from the payload. */
+/** 从负载中读取 uint16_t。 */
 uint16_t pp_u16(PayloadParser *pp);
 
-/** Read uint32_t from the payload. */
+/** 从负载中读取 uint32_t。 */
 uint32_t pp_u32(PayloadParser *pp);
 
-/** Read int8_t from the payload. */
+/** 从负载中读取 int8_t。 */
 int8_t pp_i8(PayloadParser *pp);
 
-/** Read char (int8_t) from the payload. */
+/** 从负载中读取 char（int8_t）。 */
 static inline int8_t pp_char(PayloadParser *pp)
 {
     return pp_i8(pp);
 }
 
-/** Read int16_t from the payload. */
+/** 从负载中读取 int16_t。 */
 int16_t pp_i16(PayloadParser *pp);
 
-/** Read int32_t from the payload. */
+/** 从负载中读取 int32_t。 */
 int32_t pp_i32(PayloadParser *pp);
 
-/** Read 4-byte float from the payload. */
+/** 从负载中读取 4 字节浮点数。 */
 float pp_float(PayloadParser *pp);
 
 /**
- * Parse a zero-terminated string
+ * 解析零终止字符串
  *
- * @param pp - parser
- * @param buffer - target buffer
- * @param maxlen - buffer size
- * @return actual number of bytes, excluding terminator
+ * @param pp - 解析器
+ * @param buffer - 目标缓冲区
+ * @param maxlen - 缓冲区大小
+ * @return 实际字节数，不包括终止符
  */
 uint32_t pp_string(PayloadParser *pp, char *buffer, uint32_t maxlen);
 
 /**
- * Parse a buffer
+ * 解析缓冲区
  *
- * @param pp - parser
- * @param buffer - target buffer
- * @param maxlen - buffer size
- * @return actual number of bytes, excluding terminator
+ * @param pp - 解析器
+ * @param buffer - 目标缓冲区
+ * @param maxlen - 缓冲区大小
+ * @return 实际字节数，不包括终止符
  */
 uint32_t pp_buf(PayloadParser *pp, uint8_t *buffer, uint32_t maxlen);
 

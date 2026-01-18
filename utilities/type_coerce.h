@@ -2,12 +2,12 @@
 #define TYPE_COERCE_H
 
 /**
- * Structs for conversion between types,
- * part of the TinyFrame utilities collection
+ * 用于类型转换的结构体，
+ * TinyFrame 工具集合的一部分
  * 
- * (c) Ondřej Hruška, 2016-2017. MIT license.
+ * (c) Ondřej Hruška, 2016-2017. MIT 许可证。
  * 
- * This is a support header file for PayloadParser and PayloadBuilder.
+ * 这是 PayloadParser 和 PayloadBuilder 的支持头文件。
  */
 
 #include <stdint.h>

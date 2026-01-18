@@ -1,10 +1,10 @@
 //
-// Created by MightyPork on 2017/10/15.
+// 由 MightyPork 于 2017/10/15 创建。
 //
 
 #include "demo.h"
 
-// those magic defines are needed so we can use clone()
+// 需要这些魔法定义以便我们可以使用 clone()
 #define _GNU_SOURCE
 #define __USE_GNU
 
@@ -25,7 +25,7 @@ volatile bool conn_disband = false;
 TinyFrame *demo_tf;
 
 /**
- * Close socket
+ * 关闭 socket
  */
 void demo_disconn(void)
 {
@@ -34,14 +34,14 @@ void demo_disconn(void)
 }
 
 /**
- * Demo WriteImpl - send stuff to our peer
+ * 演示 WriteImpl - 向对等方发送数据
  *
  * @param buff
  * @param len
  */
 void TF_WriteImpl(TinyFrame *tf, const uint8_t *buff, uint32_t len)
 {
-    printf("\033[32mTF_WriteImpl - sending frame:\033[0m\n");
+    printf("\033[32mTF_WriteImpl - 发送帧:\033[0m\n");
     dumpFrame(buff, len);
     usleep(1000);
 
@@ -49,13 +49,13 @@ void TF_WriteImpl(TinyFrame *tf, const uint8_t *buff, uint32_t len)
         write(sockfd, buff, len);
     }
     else {
-        printf("\nNo peer!\n");
+        printf("\n没有对等方！\n");
     }
 }
 
 
 /**
- * Client bg thread
+ * 客户端后台线程
  *
  * @param unused
  * @return unused
@@ -68,11 +68,11 @@ static int demo_client(void *unused)
     uint8_t recvBuff[1024];
     struct sockaddr_in serv_addr;
 
-    printf("\n--- STARTING CLIENT! ---\n");
+    printf("\n--- 启动客户端！ ---\n");
 
     memset(recvBuff, '0', sizeof(recvBuff));
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        printf("\n Error : Could not create socket \n");
+        printf("\n 错误：无法创建 socket \n");
         return false;
     }
 
@@ -82,20 +82,20 @@ static int demo_client(void *unused)
     serv_addr.sin_port = htons(PORT);
 
     if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
-        printf("\n inet_pton error occured\n");
+        printf("\n inet_pton 错误发生\n");
         return false;
     }
 
     if (connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        printf("\n Error : Connect Failed \n");
+        printf("\n 错误：连接失败 \n");
         perror("PERROR ");
         return false;
     }
 
-    printf("\n Child Process \n");
+    printf("\n 子进程 \n");
 
     while ((n = read(sockfd, recvBuff, sizeof(recvBuff) - 1)) > 0) {
-        printf("\033[36m--- RX %ld bytes ---\033[0m\n", n);
+        printf("\033[36m--- 接收 %ld 字节 ---\033[0m\n", n);
         dumpFrame(recvBuff, (size_t) n);
         TF_Accept(demo_tf, recvBuff, (size_t) n);
     }
@@ -103,7 +103,7 @@ static int demo_client(void *unused)
 }
 
 /**
- * Server bg thread
+ * 服务端后台线程
  *
  * @param unused
  * @return unused
@@ -117,7 +117,7 @@ static int demo_server(void *unused)
     struct sockaddr_in serv_addr;
     int option;
 
-    printf("\n--- STARTING SERVER! ---\n");
+    printf("\n--- 启动服务端！ ---\n");
 
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
     memset(&serv_addr, '0', sizeof(serv_addr));
@@ -130,33 +130,33 @@ static int demo_server(void *unused)
     serv_addr.sin_port = htons(PORT);
 
     if (bind(listenfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-        perror("Failed to bind");
+        perror("绑定失败");
         return 1;
     }
 
     if (listen(listenfd, 10) < 0) {
-        perror("Failed to listen");
+        perror("监听失败");
         return 1;
     }
 
     while (1) {
-        printf("\nWaiting for client...\n");
+        printf("\n等待客户端...\n");
         sockfd = accept(listenfd, (struct sockaddr *) NULL, NULL);
         setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, (char *) &option, sizeof(option));
-        printf("\nClient connected\n");
+        printf("\n客户端已连接\n");
         conn_disband = false;
 
         while ((n = read(sockfd, recvBuff, sizeof(recvBuff) - 1)) > 0 && !conn_disband) {
-            printf("\033[36m--- RX %ld bytes ---\033[0m\n", n);
+            printf("\033[36m--- 接收 %ld 字节 ---\033[0m\n", n);
             dumpFrame(recvBuff, n);
             TF_Accept(demo_tf, recvBuff, (size_t) n);
         }
 
         if (n < 0) {
-            printf("\n Read error \n");
+            printf("\n 读取错误 \n");
         }
 
-        printf("Closing socket\n");
+        printf("关闭 socket\n");
         close(sockfd);
         sockfd = -1;
     }
@@ -164,21 +164,21 @@ static int demo_server(void *unused)
 }
 
 /**
- * Trap - clean up
+ * 信号捕获 - 清理
  *
- * @param sig - signal that caused this
+ * @param sig - 导致此操作的信号
  */
 static void signal_handler(int sig)
 {
     (void) sig;
-    printf("Shutting down...");
+    printf("正在关闭...");
     demo_disconn();
 
-    exit(sig); // pass the signal through - this is nonstandard behavior but useful for debugging
+    exit(sig); // 传递信号 - 这是不标准的行为，但对调试有用
 }
 
 /**
- * Sleaping Beauty's fave function
+ * 睡美人的最爱函数
  */
 void demo_sleep(void)
 {
@@ -186,11 +186,11 @@ void demo_sleep(void)
 }
 
 /**
- * Start the background thread
+ * 启动后台线程
  *
- * Slave is started first and doesn't normally init transactions - but it could
+ * 从站首先启动，通常不会初始化事务 - 但它可以
  *
- * @param peer what peer we are
+ * @param peer 我们是什么对等方
  */
 void demo_init(TF_Peer peer)
 {
@@ -200,15 +200,15 @@ void demo_init(TF_Peer peer)
     int retc;
     void *stack = malloc(8192);
     if (stack == NULL) {
-        perror("Oh fuck");
+        perror("糟糕");
         signal_handler(9);
         return;
     }
 
-    printf("Starting %s...\n", peer == TF_MASTER ? "MASTER" : "SLAVE");
+    printf("正在启动 %s...\n", peer == TF_MASTER ? "主站" : "从站");
 
-    // CLONE_VM    --- share heap
-    // CLONE_FILES --- share stdout and stderr
+    // CLONE_VM    --- 共享堆
+    // CLONE_FILES --- 共享 stdout 和 stderr
     if (peer == TF_MASTER) {
         retc = clone(&demo_client, (char *) stack + 8192, CLONE_VM | CLONE_FILES, 0);
     }
@@ -217,10 +217,10 @@ void demo_init(TF_Peer peer)
     }
 
     if (retc == 0) {
-        perror("Clone fail");
+        perror("克隆失败");
         signal_handler(9);
         return;
     }
 
-    printf("Thread started\n");
+    printf("线程已启动\n");
 }

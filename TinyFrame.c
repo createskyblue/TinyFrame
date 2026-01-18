@@ -1,9 +1,9 @@
 //---------------------------------------------------------------------------
 #include "TinyFrame.h"
-#include <stdlib.h> // - for malloc() if dynamic constructor is used
+#include <stdlib.h> // - 如果使用动态构造函数，则需要 malloc()
 //---------------------------------------------------------------------------
 
-// Compatibility with ESP8266 SDK
+// 兼容 ESP8266 SDK
 #ifdef ICACHE_FLASH_ATTR
 #define _TF_FN ICACHE_FLASH_ATTR
 #else
@@ -11,25 +11,25 @@
 #endif
 
 
-// Helper macros
+// 辅助宏
 #define TF_MIN(a, b) ((a)<(b)?(a):(b))
 #define TF_TRY(func) do { if(!(func)) return false; } while (0)
 
 
-// Type-dependent masks for bit manipulation in the ID field
+// 类型相关的掩码，用于 ID 字段中的位操作
 #define TF_ID_MASK (TF_ID)(((TF_ID)1 << (sizeof(TF_ID)*8 - 1)) - 1)
-#define TF_ID_PEERBIT (TF_ID)((TF_ID)1 << ((sizeof(TF_ID)*8) - 1))
+#define TF_ID_PEERBIT (TF_ID)((TF_ID)1 << ((sizeof(TF_ID)*8 - 1)))
 
 
 #if !TF_USE_MUTEX
-    // Not thread safe lock implementation, used if user did not provide a better one.
-    // This is less reliable than a real mutex, but will catch most bugs caused by
-    // inappropriate use fo the API.
+    // 非线程安全的锁实现，如果用户没有提供更好的实现则使用此方案。
+    // 这比真正的互斥锁可靠性较低，但可以捕获由于不当使用 API 导致的
+    // 大多数错误。
 
-    /** Claim the TX interface before composing and sending a frame */
+    /** 声明** TX 接口，在组合和发送帧之前 */
     static bool TF_ClaimTx(TinyFrame *tf) {
         if (tf->soft_lock) {
-            TF_Error("TF already locked for tx!");
+            TF_Error("TF 已锁定用于 tx！");
             return false;
         }
 
@@ -37,14 +37,14 @@
         return true;
     }
 
-    /** Free the TX interface after composing and sending a frame */
+    /** 释放** TX 接口，在组合和发送帧之后 */
     static void TF_ReleaseTx(TinyFrame *tf)
     {
         tf->soft_lock = false;
     }
 #endif
 
-//region Checksums
+//region 校验和
 
 #if TF_CKSUM_TYPE == TF_CKSUM_NONE
 
@@ -95,8 +95,8 @@
 
 #elif TF_CKSUM_TYPE == TF_CKSUM_CRC16
 
-    // TODO try to replace with an algorithm
-    /** CRC table for the CRC-16. The poly is 0x8005 (x^16 + x^15 + x^2 + 1) */
+    // TODO 尝试用算法替换
+    /** CRC-16 的 CRC 表。多项式为 0x8005 (x^16 + x^15 + x^2 + 1) */
     static const uint16_t crc16_table[256] = {
         0x0000, 0xC0C1, 0xC181, 0x0140, 0xC301, 0x03C0, 0x0280, 0xC241,
         0xC601, 0x06C0, 0x0780, 0xC741, 0x0500, 0xC5C1, 0xC481, 0x0440,
@@ -143,8 +143,8 @@
 
 #elif TF_CKSUM_TYPE == TF_CKSUM_CRC32
 
-    // TODO try to replace with an algorithm
-    static const uint32_t crc32_table[] = { /* CRC polynomial 0xedb88320 */
+    // TODO 尝试用算法替换
+    static const uint32_t crc32_table[] = { /* CRC 多项式 0xedb88320 */
         0x00000000, 0x77073096, 0xee0e612c, 0x990951ba, 0x076dc419, 0x706af48f,
         0xe963a535, 0x9e6495a3, 0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,
         0x09b64c2b, 0x7eb17cbd, 0xe7b82d07, 0x90bf1d91, 0x1db71064, 0x6ab020f2,
@@ -208,17 +208,17 @@
 //endregion
 
 
-//region Init
+//region 初始化
 
-/** Init with a user-allocated buffer */
+/** 使用用户分配的缓冲区初始化 */
 bool _TF_FN TF_InitStatic(TinyFrame *tf, TF_Peer peer_bit)
 {
     if (tf == NULL) {
-        TF_Error("TF_InitStatic() failed, tf is null.");
+        TF_Error("TF_InitStatic() 失败，tf 为空。");
         return false;
     }
 
-    // Zero it out, keeping user config
+    // 清零，保留用户配置
     uint32_t usertag = tf->usertag;
     void * userdata = tf->userdata;
 
@@ -231,12 +231,12 @@ bool _TF_FN TF_InitStatic(TinyFrame *tf, TF_Peer peer_bit)
     return true;
 }
 
-/** Init with malloc */
+/** 使用 malloc 初始化 */
 TinyFrame * _TF_FN TF_Init(TF_Peer peer_bit)
 {
     TinyFrame *tf = malloc(sizeof(TinyFrame));
     if (!tf) {
-        TF_Error("TF_Init() failed, out of memory.");
+        TF_Error("TF_Init() 失败，内存不足。");
         return NULL;
     }
 
@@ -244,39 +244,39 @@ TinyFrame * _TF_FN TF_Init(TF_Peer peer_bit)
     return tf;
 }
 
-/** Release the struct */
+/** 释放结构体 */
 void TF_DeInit(TinyFrame *tf)
 {
     if (tf == NULL) return;
     free(tf);
 }
 
-//endregion Init
+//endregion 初始化
 
 
-//region Listeners
+//region 监听器
 
-/** Reset ID listener's timeout to the original value */
+/** 将 ID 监听器的超时重置为原始值 */
 static inline void _TF_FN renew_id_listener(struct TF_IdListener_ *lst)
 {
     lst->timeout = lst->timeout_max;
 }
 
-/** Notify callback about ID listener's demise & let it free any resources in userdata */
+/** 通知回调 ID 监听器已被终止，并让其释放 userdata 中的任何资源 */
 static void _TF_FN cleanup_id_listener(TinyFrame *tf, TF_COUNT i, struct TF_IdListener_ *lst)
 {
     TF_Msg msg;
     if (lst->fn == NULL) return;
 
-    // Make user clean up their data - only if not NULL
+    // 让用户清理他们的数据 - 仅当不为 NULL 时
     if (lst->userdata != NULL || lst->userdata2 != NULL) {
         msg.userdata = lst->userdata;
         msg.userdata2 = lst->userdata2;
-        msg.data = NULL; // this is a signal that the listener should clean up
-        lst->fn(tf, &msg); // return value is ignored here - use TF_STAY or TF_CLOSE
+        msg.data = NULL; // 这是一个信号，表示监听器应该清理
+        lst->fn(tf, &msg); // 此处忽略返回值 - 使用 TF_STAY 或 TF_CLOSE
     }
 
-    lst->fn = NULL; // Discard listener
+    lst->fn = NULL; // 丢弃监听器
     lst->fn_timeout = NULL;
 
     if (i == tf->count_id_lst - 1) {
@@ -284,32 +284,32 @@ static void _TF_FN cleanup_id_listener(TinyFrame *tf, TF_COUNT i, struct TF_IdLi
     }
 }
 
-/** Clean up Type listener */
+/** 清理类型监听器 */
 static inline void _TF_FN cleanup_type_listener(TinyFrame *tf, TF_COUNT i, struct TF_TypeListener_ *lst)
 {
-    lst->fn = NULL; // Discard listener
+    lst->fn = NULL; // 丢弃监听器
     if (i == tf->count_type_lst - 1) {
         tf->count_type_lst--;
     }
 }
 
-/** Clean up Generic listener */
+/** 清理通用监听器 */
 static inline void _TF_FN cleanup_generic_listener(TinyFrame *tf, TF_COUNT i, struct TF_GenericListener_ *lst)
 {
-    lst->fn = NULL; // Discard listener
+    lst->fn = NULL; // 丢弃监听器
     if (i == tf->count_generic_lst - 1) {
         tf->count_generic_lst--;
     }
 }
 
-/** Add a new ID listener. Returns 1 on success. */
+/** 添加一个新的 ID 监听器。成功时返回 1。 */
 bool _TF_FN TF_AddIdListener(TinyFrame *tf, TF_Msg *msg, TF_Listener cb, TF_Listener_Timeout ftimeout, TF_TICKS timeout)
 {
     TF_COUNT i;
     struct TF_IdListener_ *lst;
     for (i = 0; i < TF_MAX_ID_LST; i++) {
         lst = &tf->id_listeners[i];
-        // test for empty slot
+        // 测试空槽
         if (lst->fn == NULL) {
             lst->fn = cb;
             lst->fn_timeout = ftimeout;
@@ -324,18 +324,18 @@ bool _TF_FN TF_AddIdListener(TinyFrame *tf, TF_Msg *msg, TF_Listener cb, TF_List
         }
     }
 
-    TF_Error("Failed to add ID listener");
+    TF_Error("添加 ID 监听器失败");
     return false;
 }
 
-/** Add a new Type listener. Returns 1 on success. */
+/** 添加一个新的类型监听器。成功时返回 1。 */
 bool _TF_FN TF_AddTypeListener(TinyFrame *tf, TF_TYPE frame_type, TF_Listener cb)
 {
     TF_COUNT i;
     struct TF_TypeListener_ *lst;
     for (i = 0; i < TF_MAX_TYPE_LST; i++) {
         lst = &tf->type_listeners[i];
-        // test for empty slot
+        // 测试空槽
         if (lst->fn == NULL) {
             lst->fn = cb;
             lst->type = frame_type;
@@ -346,18 +346,18 @@ bool _TF_FN TF_AddTypeListener(TinyFrame *tf, TF_TYPE frame_type, TF_Listener cb
         }
     }
 
-    TF_Error("Failed to add type listener");
+    TF_Error("添加类型监听器失败");
     return false;
 }
 
-/** Add a new Generic listener. Returns 1 on success. */
+/** 添加一个新的通用监听器。成功时返回 1。 */
 bool _TF_FN TF_AddGenericListener(TinyFrame *tf, TF_Listener cb)
 {
     TF_COUNT i;
     struct TF_GenericListener_ *lst;
     for (i = 0; i < TF_MAX_GEN_LST; i++) {
         lst = &tf->generic_listeners[i];
-        // test for empty slot
+        // 测试空槽
         if (lst->fn == NULL) {
             lst->fn = cb;
             if (i >= tf->count_generic_lst) {
@@ -367,65 +367,65 @@ bool _TF_FN TF_AddGenericListener(TinyFrame *tf, TF_Listener cb)
         }
     }
 
-    TF_Error("Failed to add generic listener");
+    TF_Error("添加通用监听器失败");
     return false;
 }
 
-/** Remove a ID listener by its frame ID. Returns 1 on success. */
+/** 通过帧 ID 移除 ID 监听器。成功时返回 1。 */
 bool _TF_FN TF_RemoveIdListener(TinyFrame *tf, TF_ID frame_id)
 {
     TF_COUNT i;
     struct TF_IdListener_ *lst;
     for (i = 0; i < tf->count_id_lst; i++) {
         lst = &tf->id_listeners[i];
-        // test if live & matching
+        // 测试是否存活且匹配
         if (lst->fn != NULL && lst->id == frame_id) {
             cleanup_id_listener(tf, i, lst);
             return true;
         }
     }
 
-    TF_Error("ID listener %d to remove not found", (int)frame_id);
+    TF_Error("要移除的 ID 监听器 %d 未找到", (int)frame_id);
     return false;
 }
 
-/** Remove a type listener by its type. Returns 1 on success. */
+/** 通过类型移除类型监听器。成功时返回 1。 */
 bool _TF_FN TF_RemoveTypeListener(TinyFrame *tf, TF_TYPE type)
 {
     TF_COUNT i;
     struct TF_TypeListener_ *lst;
     for (i = 0; i < tf->count_type_lst; i++) {
         lst = &tf->type_listeners[i];
-        // test if live & matching
+        // 测试是否存活且匹配
         if (lst->fn != NULL    && lst->type == type) {
             cleanup_type_listener(tf, i, lst);
             return true;
         }
     }
 
-    TF_Error("Type listener %d to remove not found", (int)type);
+    TF_Error("要移除的类型监听器 %d 未找到", (int)type);
     return false;
 }
 
-/** Remove a generic listener by its function pointer. Returns 1 on success. */
+/** 通过函数指针移除通用监听器。成功时返回 1。 */
 bool _TF_FN TF_RemoveGenericListener(TinyFrame *tf, TF_Listener cb)
 {
     TF_COUNT i;
     struct TF_GenericListener_ *lst;
     for (i = 0; i < tf->count_generic_lst; i++) {
         lst = &tf->generic_listeners[i];
-        // test if live & matching
+        // 测试是否存活且匹配
         if (lst->fn == cb) {
             cleanup_generic_listener(tf, i, lst);
             return true;
         }
     }
 
-    TF_Error("Generic listener to remove not found");
+    TF_Error("要移除的通用监听器未找到");
     return false;
 }
 
-/** Handle a message that was just collected & verified by the parser */
+/** 处理由解析器刚刚收集和验证的消息 */
 static void _TF_FN TF_HandleReceivedMessage(TinyFrame *tf)
 {
     TF_COUNT i;
@@ -434,7 +434,7 @@ static void _TF_FN TF_HandleReceivedMessage(TinyFrame *tf)
     struct TF_GenericListener_ *glst;
     TF_Result res;
 
-    // Prepare message object
+    // 准备消息对象
     TF_Msg msg;
     TF_ClearMsg(&msg);
     msg.frame_id = tf->id;
@@ -443,29 +443,29 @@ static void _TF_FN TF_HandleReceivedMessage(TinyFrame *tf)
     msg.data = tf->data;
     msg.len = tf->len;
 
-    // Any listener can consume the message, or let someone else handle it.
+    // 任何监听器都可以消耗消息，或者让其他人处理。
 
-    // The loop upper bounds are the highest currently used slot index
-    // (or close to it, depending on the order of listener removals).
+    // 循环上限是当前使用的最高槽索引
+    // （或者接近它，取决于监听器的移除顺序）。
 
-    // ID listeners first
+    // 首先是 ID 监听器
     for (i = 0; i < tf->count_id_lst; i++) {
         ilst = &tf->id_listeners[i];
 
         if (ilst->fn && ilst->id == msg.frame_id) {
-            msg.userdata = ilst->userdata; // pass userdata pointer to the callback
+            msg.userdata = ilst->userdata; // 将 userdata 指针传递给回调
             msg.userdata2 = ilst->userdata2;
             res = ilst->fn(tf, &msg);
-            ilst->userdata = msg.userdata; // put it back (may have changed the pointer or set to NULL)
-            ilst->userdata2 = msg.userdata2; // put it back (may have changed the pointer or set to NULL)
+            ilst->userdata = msg.userdata; // 把它放回去（可能已更改指针或设置为 NULL）
+            ilst->userdata2 = msg.userdata2; // 把它放回去（可能已更改指针或设置为 NULL）
 
             if (res != TF_NEXT) {
-                // if it's TF_CLOSE, we assume user already cleaned up userdata
+                // 如果是 TF_CLOSE，我们假设用户已经清理了 userdata
                 if (res == TF_RENEW) {
                     renew_id_listener(ilst);
                 }
                 else if (res == TF_CLOSE) {
-                    // Set userdata to NULL to avoid calling user for cleanup
+                    // 将 userdata 设置为 NULL 以避免调用用户进行清理
                     ilst->userdata = NULL;
                     ilst->userdata2 = NULL;
                     cleanup_id_listener(tf, i, ilst);
@@ -474,12 +474,12 @@ static void _TF_FN TF_HandleReceivedMessage(TinyFrame *tf)
             }
         }
     }
-    // clean up for the following listeners that don't use userdata (this avoids data from
-    // an ID listener that returned TF_NEXT from leaking into Type and Generic listeners)
+    // 为不使用 userdata 的后续监听器清理（这避免了从返回 TF_NEXT 的 ID 监听器中的数据
+    // 泄漏到类型和通用监听器）
     msg.userdata = NULL;
     msg.userdata2 = NULL;
 
-    // Type listeners
+    // 类型监听器
     for (i = 0; i < tf->count_type_lst; i++) {
         tlst = &tf->type_listeners[i];
 
@@ -487,8 +487,8 @@ static void _TF_FN TF_HandleReceivedMessage(TinyFrame *tf)
             res = tlst->fn(tf, &msg);
 
             if (res != TF_NEXT) {
-                // type listeners don't have userdata.
-                // TF_RENEW doesn't make sense here because type listeners don't expire = same as TF_STAY
+                // 类型监听器没有 userdata。
+                // TF_RENEW 在这里没有意义，因为类型监听器不会过期 = 等同于 TF_STAY
 
                 if (res == TF_CLOSE) {
                     cleanup_type_listener(tf, i, tlst);
@@ -498,7 +498,7 @@ static void _TF_FN TF_HandleReceivedMessage(TinyFrame *tf)
         }
     }
 
-    // Generic listeners
+    // 通用监听器
     for (i = 0; i < tf->count_generic_lst; i++) {
         glst = &tf->generic_listeners[i];
 
@@ -506,12 +506,11 @@ static void _TF_FN TF_HandleReceivedMessage(TinyFrame *tf)
             res = glst->fn(tf, &msg);
 
             if (res != TF_NEXT) {
-                // generic listeners don't have userdata.
-                // TF_RENEW doesn't make sense here because generic listeners don't expire = same as TF_STAY
+                // 通用监听器没有 userdata。
+                // TF_RENEW 在这里没有意义，因为通用监听器不会过期 = 等同于 TF_STAY
 
-                // note: It's not expected that user will have multiple generic listeners, or
-                // ever actually remove them. They're most useful as default callbacks if no other listener
-                // handled the message.
+                // 注意：不预期用户会有多个通用监听器，
+                // 或者实际移除它们。它们作为默认回调最有用，如果没有其他监听器处理消息。
 
                 if (res == TF_CLOSE) {
                     cleanup_generic_listener(tf, i, glst);
@@ -521,33 +520,33 @@ static void _TF_FN TF_HandleReceivedMessage(TinyFrame *tf)
         }
     }
 
-    TF_Error("Unhandled message, type %d", (int)msg.type);
+    TF_Error("未处理的消息，类型 %d", (int)msg.type);
 }
 
-/** Externally renew an ID listener */
+/** 外部续期 ID 监听器 */
 bool _TF_FN TF_RenewIdListener(TinyFrame *tf, TF_ID id)
 {
     TF_COUNT i;
     struct TF_IdListener_ *lst;
     for (i = 0; i < tf->count_id_lst; i++) {
         lst = &tf->id_listeners[i];
-        // test if live & matching
+        // 测试是否存活且匹配
         if (lst->fn != NULL && lst->id == id) {
             renew_id_listener(lst);
             return true;
         }
     }
 
-    TF_Error("Renew listener: not found (id %d)", (int)id);
+    TF_Error("续期监听器：未找到（id %d）", (int)id);
     return false;
 }
 
-//endregion Listeners
+//endregion 监听器
 
 
-//region Parser
+//region 解析器
 
-/** Handle a received byte buffer */
+/** 处理接收到的字节缓冲区 */
 void _TF_FN TF_Accept(TinyFrame *tf, const uint8_t *buffer, uint32_t count)
 {
     uint32_t i;
@@ -556,16 +555,16 @@ void _TF_FN TF_Accept(TinyFrame *tf, const uint8_t *buffer, uint32_t count)
     }
 }
 
-/** Reset the parser's internal state. */
+/** 重置** 解析器的内部状态。 */
 void _TF_FN TF_ResetParser(TinyFrame *tf)
 {
     tf->state = TFState_SOF;
-    // more init will be done by the parser when the first byte is received
+    // 更多初始化将在接收到第一个字节时由解析器完成
 }
 
-/** SOF was received - prepare for the frame */
+/** 接收到 SOF - 为帧做准备 */
 static void _TF_FN pars_begin_frame(TinyFrame *tf) {
-    // Reset state vars
+    // 重置状态变量
     CKSUM_RESET(tf->cksum);
 #if TF_USE_SOF_BYTE
     CKSUM_ADD(tf->cksum, TF_SOF_BYTE);
@@ -573,27 +572,26 @@ static void _TF_FN pars_begin_frame(TinyFrame *tf) {
 
     tf->discard_data = false;
 
-    // Enter ID state
+    // 进入 ID 状态
     tf->state = TFState_ID;
     tf->rxi = 0;
 }
 
-/** Handle a received char - here's the main state machine */
+/** 处理接收到的字符 - 这是主状态机 */
 void _TF_FN TF_AcceptChar(TinyFrame *tf, unsigned char c)
 {
-    // Parser timeout - clear
+    // 解析器超时 - 清除
     if (tf->parser_timeout_ticks >= TF_PARSER_TIMEOUT_TICKS) {
         if (tf->state != TFState_SOF) {
             TF_ResetParser(tf);
-            TF_Error("Parser timeout");
+            TF_Error("解析器超时");
         }
     }
     tf->parser_timeout_ticks = 0;
 
-// DRY snippet - collect multi-byte number from the input stream, byte by byte
-// This is a little dirty, but makes the code easier to read. It's used like e.g. if(),
-// the body is run only after the entire number (of data type 'type') was received
-// and stored to 'dest'
+// DRY 代码片段 - 从输入流逐字节收集多字节数字
+// 这有点脏，但使代码更易读。使用方式例如 if()，
+// 仅在接收到整个数字（数据类型为 'type'）并存储到 'dest' 后运行主体
 #define COLLECT_NUMBER(dest, type) dest = (type)(((dest) << 8) | c); \
                                    if (++tf->rxi == sizeof(type))
 
@@ -614,7 +612,7 @@ void _TF_FN TF_AcceptChar(TinyFrame *tf, unsigned char c)
         case TFState_ID:
             CKSUM_ADD(tf->cksum, c);
             COLLECT_NUMBER(tf->id, TF_ID) {
-                // Enter LEN state
+                // 进入 LEN 状态
                 tf->state = TFState_LEN;
                 tf->rxi = 0;
             }
@@ -623,7 +621,7 @@ void _TF_FN TF_AcceptChar(TinyFrame *tf, unsigned char c)
         case TFState_LEN:
             CKSUM_ADD(tf->cksum, c);
             COLLECT_NUMBER(tf->len, TF_LEN) {
-                // Enter TYPE state
+                // 进入 TYPE 状态
                 tf->state = TFState_TYPE;
                 tf->rxi = 0;
             }
@@ -636,7 +634,7 @@ void _TF_FN TF_AcceptChar(TinyFrame *tf, unsigned char c)
                     tf->state = TFState_DATA;
                     tf->rxi = 0;
                 #else
-                    // enter HEAD_CKSUM state
+                    // 进入 HEAD_CKSUM 状态
                     tf->state = TFState_HEAD_CKSUM;
                     tf->rxi = 0;
                     tf->ref_cksum = 0;
@@ -646,31 +644,31 @@ void _TF_FN TF_AcceptChar(TinyFrame *tf, unsigned char c)
 
         case TFState_HEAD_CKSUM:
             COLLECT_NUMBER(tf->ref_cksum, TF_CKSUM) {
-                // Check the header checksum against the computed value
+                // 对照计算值检查头部校验和
                 CKSUM_FINALIZE(tf->cksum);
 
                 if (tf->cksum != tf->ref_cksum) {
-                    TF_Error("Rx head cksum mismatch");
+                    TF_Error("接收头部校验和不匹配");
                     TF_ResetParser(tf);
                     break;
                 }
 
                 if (tf->len == 0) {
-                    // if the message has no body, we're done.
+                    // 如果消息没有主体，我们就完成了。
                     TF_HandleReceivedMessage(tf);
                     TF_ResetParser(tf);
                     break;
                 }
 
-                // Enter DATA state
+                // 进入 DATA 状态
                 tf->state = TFState_DATA;
                 tf->rxi = 0;
 
-                CKSUM_RESET(tf->cksum); // Start collecting the payload
+                CKSUM_RESET(tf->cksum); // 开始收集负载
 
                 if (tf->len > TF_MAX_PAYLOAD_RX) {
-                    TF_Error("Rx payload too long: %d", (int)tf->len);
-                    // ERROR - frame too long. Consume, but do not store.
+                    TF_Error("接收负载过长：%d", (int)tf->len);
+                    // 错误 - 帧太长。消费但不存储。
                     tf->discard_data = true;
                 }
             }
@@ -686,11 +684,11 @@ void _TF_FN TF_AcceptChar(TinyFrame *tf, unsigned char c)
 
             if (tf->rxi == tf->len) {
                 #if TF_CKSUM_TYPE == TF_CKSUM_NONE
-                    // All done
+                    // 全部完成
                     TF_HandleReceivedMessage(tf);
                     TF_ResetParser(tf);
                 #else
-                    // Enter DATA_CKSUM state
+                    // 进入 DATA_CKSUM 状态
                     tf->state = TFState_DATA_CKSUM;
                     tf->rxi = 0;
                     tf->ref_cksum = 0;
@@ -700,13 +698,13 @@ void _TF_FN TF_AcceptChar(TinyFrame *tf, unsigned char c)
 
         case TFState_DATA_CKSUM:
             COLLECT_NUMBER(tf->ref_cksum, TF_CKSUM) {
-                // Check the header checksum against the computed value
+                // 对照计算值检查头部校验和
                 CKSUM_FINALIZE(tf->cksum);
                 if (!tf->discard_data) {
                     if (tf->cksum == tf->ref_cksum) {
                         TF_HandleReceivedMessage(tf);
                     } else {
-                        TF_Error("Body cksum mismatch");
+                        TF_Error("主体校验和不匹配");
                     }
                 }
 
@@ -717,21 +715,21 @@ void _TF_FN TF_AcceptChar(TinyFrame *tf, unsigned char c)
     //@formatter:on
 }
 
-//endregion Parser
+//endregion 解析器
 
 
-//region Compose and send
+//region 组合和发送
 
-// Helper macros for the Compose functions
-// use variables: si - signed int, b - byte, outbuff - target buffer, pos - count of bytes in buffer
+// 组合函数的辅助宏
+// 使用变量：si - 有符号整数，b - 字节，outbuff - 目标缓冲区，pos - 缓冲区中的字节数
 
 
 /**
- * Write a number to the output buffer.
+ * 将数字写入输出缓冲区。
  *
- * @param type - data type
- * @param num - number to write
- * @param xtra - extra callback run after each byte, 'b' now contains the byte.
+ * @param type - 数据类型
+ * @param num - 要写入的数字
+ * @param xtra - 在每个字节后运行的额外回调，'b' 现在包含字节。
  */
 #define WRITENUM_BASE(type, num, xtra) \
     for (si = sizeof(type)-1; si>=0; si--) { \
@@ -741,47 +739,47 @@ void _TF_FN TF_AcceptChar(TinyFrame *tf, unsigned char c)
     }
 
 /**
- * Do nothing
+ * 什么都不做
  */
 #define _NOOP()
 
 /**
- * Write a number without adding its bytes to the checksum
+ * 写入数字而不将其字节添加到校验和
  *
- * @param type - data type
- * @param num - number to write
+ * @param type - 数据类型
+ * @param num - 要写入的数字
  */
 #define WRITENUM(type, num)       WRITENUM_BASE(type, num, _NOOP())
 
 /**
- * Write a number AND add its bytes to the checksum
+ * 写入数字并将其字节添加到校验和
  *
- * @param type - data type
- * @param num - number to write
+ * @param type - 数据类型
+ * @param num - 要写入的数字
  */
 #define WRITENUM_CKSUM(type, num) WRITENUM_BASE(type, num, CKSUM_ADD(cksum, b))
 
 /**
- * Compose a frame (used internally by TF_Send and TF_Respond).
- * The frame can be sent using TF_WriteImpl(), or received by TF_Accept()
+ * 组合一帧（由 TF_Send 和 TF_Respond 内部使用）。
+ * 该帧可以使用 TF_WriteImpl() 发送，或由 TF_Accept() 接收
  *
- * @param outbuff - buffer to store the result in
- * @param msg - message written to the buffer
- * @return nr of bytes in outbuff used by the frame, 0 on failure
+ * @param outbuff - 用于存储结果的缓冲区
+ * @param msg - 写入缓冲区的消息
+ * @return 帧使用的 outbuff 中的字节数，失败时返回 0
  */
 static inline uint32_t _TF_FN TF_ComposeHead(TinyFrame *tf, uint8_t *outbuff, TF_Msg *msg)
 {
-    int8_t si = 0; // signed small int
+    int8_t si = 0; // 有符号小整数
     uint8_t b = 0;
     TF_ID id = 0;
     TF_CKSUM cksum = 0;
     uint32_t pos = 0;
 
-    (void)cksum; // suppress "unused" warning if checksums are disabled
+    (void)cksum; // 如果禁用校验和，抑制"未使用"警告
 
     CKSUM_RESET(cksum);
 
-    // Gen ID
+    // 生成 ID
     if (msg->is_response) {
         id = msg->frame_id;
     }
@@ -792,9 +790,9 @@ static inline uint32_t _TF_FN TF_ComposeHead(TinyFrame *tf, uint8_t *outbuff, TF
         }
     }
 
-    msg->frame_id = id; // put the resolved ID into the message object for later use
+    msg->frame_id = id; // 将解析后的 ID 放入消息对象以供后续使用
 
-    // --- Start ---
+    // --- 开始 ---
     CKSUM_RESET(cksum);
 
 #if TF_USE_SOF_BYTE
@@ -815,14 +813,14 @@ static inline uint32_t _TF_FN TF_ComposeHead(TinyFrame *tf, uint8_t *outbuff, TF
 }
 
 /**
- * Compose a frame (used internally by TF_Send and TF_Respond).
- * The frame can be sent using TF_WriteImpl(), or received by TF_Accept()
+ * 组合一帧（由 TF_Send 和 TF_Respond 内部使用）。
+ * 该帧可以使用 TF_WriteImpl() 发送，或由 TF_Accept() 接收
  *
- * @param outbuff - buffer to store the result in
- * @param data - data buffer
- * @param data_len - data buffer len
- * @param cksum - checksum variable, used for all calls to TF_ComposeBody. Must be reset before first use! (CKSUM_RESET(cksum);)
- * @return nr of bytes in outbuff used
+ * @param outbuff - 用于存储结果的缓冲区
+ * @param data - 数据缓冲区
+ * @param data_len - 数据缓冲区长度
+ * @param cksum - 校验和变量，用于所有对 TF_ComposeBody 的调用。必须在首次使用前重置！（CKSUM_RESET(cksum);）
+ * @return 使用的 outbuff 中的字节数
  */
 static inline uint32_t _TF_FN TF_ComposeBody(uint8_t *outbuff,
                                     const uint8_t *data, TF_LEN data_len,
@@ -832,25 +830,29 @@ static inline uint32_t _TF_FN TF_ComposeBody(uint8_t *outbuff,
     uint8_t b = 0;
     uint32_t pos = 0;
 
+#if TF_CKSUM_TYPE == TF_CKSUM_NONE
+    memcpy(outbuff, data, data_len);
+#else
     for (i = 0; i < data_len; i++) {
         b = data[i];
         outbuff[pos++] = b;
         CKSUM_ADD(*cksum, b);
     }
+#endif // TF_CKSUM_TYPE
 
     return pos;
 }
 
 /**
- * Finalize a frame
+ * 完成一帧
  *
- * @param outbuff - buffer to store the result in
- * @param cksum - checksum variable used for the body
- * @return nr of bytes in outbuff used
+ * @param outbuff - 用于存储结果的缓冲区
+ * @param cksum - 用于主体的校验和变量
+ * @return 使用的 outbuff 中的字节数
  */
 static inline uint32_t _TF_FN TF_ComposeTail(uint8_t *outbuff, TF_CKSUM *cksum)
 {
-    int8_t si = 0; // signed small int
+    int8_t si = 0; // 有符号小整数
     uint8_t b = 0;
     uint32_t pos = 0;
 
@@ -862,20 +864,20 @@ static inline uint32_t _TF_FN TF_ComposeTail(uint8_t *outbuff, TF_CKSUM *cksum)
 }
 
 /**
- * Begin building and sending a frame
+ * 开始构建和发送帧
  *
- * @param tf - instance
- * @param msg - message to send
- * @param listener - response listener or NULL
- * @param ftimeout - time out callback
- * @param timeout - listener timeout ticks, 0 = indefinite
- * @return success (mutex claimed and listener added, if any)
+ * @param tf - 实例
+ * @param msg - 要发送的消息
+ * @param listener - 响应监听器或 NULL
+ * @param ftimeout - 超时回调
+ * @param timeout - 监听器超时 tick 数，0 = 无限期
+ * @return 成功（互斥锁已声明且监听器已添加，如果有）
  */
 static bool _TF_FN TF_SendFrame_Begin(TinyFrame *tf, TF_Msg *msg, TF_Listener listener, TF_Listener_Timeout ftimeout, TF_TICKS timeout)
 {
     TF_TRY(TF_ClaimTx(tf));
 
-    tf->tx_pos = (uint32_t) TF_ComposeHead(tf, tf->sendbuf, msg); // frame ID is incremented here if it's not a response
+    tf->tx_pos = (uint32_t) TF_ComposeHead(tf, tf->sendbuf, msg); // 如果不是响应，帧 ID 在此处递增
     tf->tx_len = msg->len;
 
     if (listener) {
@@ -890,12 +892,12 @@ static bool _TF_FN TF_SendFrame_Begin(TinyFrame *tf, TF_Msg *msg, TF_Listener li
 }
 
 /**
- * Build and send a part (or all) of a frame body.
- * Caution: this does not check the total length against the length specified in the frame head
+ * 构建和发送帧主体的一部分（或全部）。
+ * 注意：这不检查总长度是否与帧头中指定的长度匹配
  *
- * @param tf - instance
- * @param buff - bytes to write
- * @param length - count
+ * @param tf - 实例
+ * @param buff - 要写入的字节
+ * @param length - 数量
  */
 static void _TF_FN TF_SendFrame_Chunk(TinyFrame *tf, const uint8_t *buff, uint32_t length)
 {
@@ -905,13 +907,13 @@ static void _TF_FN TF_SendFrame_Chunk(TinyFrame *tf, const uint8_t *buff, uint32
 
     remain = length;
     while (remain > 0) {
-        // Write what can fit in the tx buffer
+        // 写入能放入 tx 缓冲区的内容
         chunk = TF_MIN(TF_SENDBUF_LEN - tf->tx_pos, remain);
         tf->tx_pos += TF_ComposeBody(tf->sendbuf+tf->tx_pos, buff+sent, (TF_LEN) chunk, &tf->tx_cksum);
         remain -= chunk;
         sent += chunk;
 
-        // Flush if the buffer is full
+        // 如果缓冲区满则刷新
         if (tf->tx_pos == TF_SENDBUF_LEN) {
             TF_WriteImpl(tf, (const uint8_t *) tf->sendbuf, tf->tx_pos);
             tf->tx_pos = 0;
@@ -920,21 +922,21 @@ static void _TF_FN TF_SendFrame_Chunk(TinyFrame *tf, const uint8_t *buff, uint32
 }
 
 /**
- * End a multi-part frame. This sends the checksum and releases mutex.
+ * 结束多部分帧。这会发送校验和并释放互斥锁。
  *
- * @param tf - instance
+ * @param tf - 实例
  */
 static void _TF_FN TF_SendFrame_End(TinyFrame *tf)
 {
-    // Checksum only if message had a body
+    // 仅当消息有主体时才校验和
     if (tf->tx_len > 0) {
-        // Flush if checksum wouldn't fit in the buffer
+        // 如果校验和无法放入缓冲区则刷新
         if (TF_SENDBUF_LEN - tf->tx_pos < sizeof(TF_CKSUM)) {
             TF_WriteImpl(tf, (const uint8_t *) tf->sendbuf, tf->tx_pos);
             tf->tx_pos = 0;
         }
 
-        // Add checksum, flush what remains to be sent
+        // 添加校验和，刷新剩余要发送的内容
         tf->tx_pos += TF_ComposeTail(tf->sendbuf + tf->tx_pos, &tf->tx_cksum);
     }
 
@@ -943,40 +945,40 @@ static void _TF_FN TF_SendFrame_End(TinyFrame *tf)
 }
 
 /**
- * Send a message
+ * 发送消息
  *
- * @param tf - instance
- * @param msg - message object
- * @param listener - ID listener, or NULL
- * @param ftimeout - time out callback
- * @param timeout - listener timeout, 0 is none
- * @return true if sent
+ * @param tf - 实例
+ * @param msg - 消息对象
+ * @param listener - ID 监听器，或 NULL
+ * @param ftimeout - 超时回调
+ * @param timeout - 监听器超时，0 表示无
+ * @return 如果已发送则返回 true
  */
 static bool _TF_FN TF_SendFrame(TinyFrame *tf, TF_Msg *msg, TF_Listener listener, TF_Listener_Timeout ftimeout, TF_TICKS timeout)
 {
     TF_TRY(TF_SendFrame_Begin(tf, msg, listener, ftimeout, timeout));
     if (msg->len == 0 || msg->data != NULL) {
-        // Send the payload and checksum only if we're not starting a multi-part frame.
-        // A multi-part frame is identified by passing NULL to the data field and setting the length.
-        // User then needs to call those functions manually
+        // 仅当我们不是在启动多部分帧时才发送负载和校验和。
+        // 多部分帧通过将 NULL 传递给 data 字段并设置长度来标识。
+        // 然后用户需要手动调用这些函数
         TF_SendFrame_Chunk(tf, msg->data, msg->len);
         TF_SendFrame_End(tf);
     }
     return true;
 }
 
-//endregion Compose and send
+//endregion 组合和发送
 
 
-//region Sending API funcs
+//region 发送 API 函数
 
-/** send without listener */
+/** 不带监听器发送 */
 bool _TF_FN TF_Send(TinyFrame *tf, TF_Msg *msg)
 {
     return TF_SendFrame(tf, msg, NULL, NULL, 0);
 }
 
-/** send without listener and struct */
+/** 不带监听器和结构体发送 */
 bool _TF_FN TF_SendSimple(TinyFrame *tf, TF_TYPE type, const uint8_t *data, TF_LEN len)
 {
     TF_Msg msg;
@@ -987,7 +989,7 @@ bool _TF_FN TF_SendSimple(TinyFrame *tf, TF_TYPE type, const uint8_t *data, TF_L
     return TF_Send(tf, &msg);
 }
 
-/** send with a listener waiting for a reply, without the struct */
+/** 带监听器等待回复发送，不带结构体 */
 bool _TF_FN TF_QuerySimple(TinyFrame *tf, TF_TYPE type, const uint8_t *data, TF_LEN len, TF_Listener listener, TF_Listener_Timeout ftimeout, TF_TICKS timeout)
 {
     TF_Msg msg;
@@ -998,23 +1000,23 @@ bool _TF_FN TF_QuerySimple(TinyFrame *tf, TF_TYPE type, const uint8_t *data, TF_
     return TF_SendFrame(tf, &msg, listener, ftimeout, timeout);
 }
 
-/** send with a listener waiting for a reply */
+/** 带监听器等待回复发送 */
 bool _TF_FN TF_Query(TinyFrame *tf, TF_Msg *msg, TF_Listener listener, TF_Listener_Timeout ftimeout, TF_TICKS timeout)
 {
     return TF_SendFrame(tf, msg, listener, ftimeout, timeout);
 }
 
-/** Like TF_Send, but with explicit frame ID (set inside the msg object), use for responses */
+/** 类似于 TF_Send，但使用显式帧 ID（在 msg 对象内设置），用于响应 */
 bool _TF_FN TF_Respond(TinyFrame *tf, TF_Msg *msg)
 {
     msg->is_response = true;
     return TF_Send(tf, msg);
 }
 
-//endregion Sending API funcs
+//endregion 发送 API 函数
 
 
-//region Sending API funcs - multipart
+//region 发送 API 函数 - 多部分
 
 bool _TF_FN TF_Send_Multipart(TinyFrame *tf, TF_Msg *msg)
 {
@@ -1054,31 +1056,31 @@ void _TF_FN TF_Multipart_Close(TinyFrame *tf)
     TF_SendFrame_End(tf);
 }
 
-//endregion Sending API funcs - multipart
+//endregion 发送 API 函数 - 多部分
 
 
-/** Timebase hook - for timeouts */
+/** 时间基准挂钩 - 用于超时 */
 void _TF_FN TF_Tick(TinyFrame *tf)
 {
     TF_COUNT i;
     struct TF_IdListener_ *lst;
 
-    // increment parser timeout (timeout is handled when receiving next byte)
+    // 增加解析器超时（超时在接收下一个字节时处理）
     if (tf->parser_timeout_ticks < TF_PARSER_TIMEOUT_TICKS) {
         tf->parser_timeout_ticks++;
     }
 
-    // decrement and expire ID listeners
+    // 递减并使 ID 监听器过期
     for (i = 0; i < tf->count_id_lst; i++) {
         lst = &tf->id_listeners[i];
         if (!lst->fn || lst->timeout == 0) continue;
-        // count down...
+        // 倒计时...
         if (--lst->timeout == 0) {
-            TF_Error("ID listener %d has expired", (int)lst->id);
+            TF_Error("ID 监听器 %d 已过期", (int)lst->id);
             if (lst->fn_timeout != NULL) {
-                lst->fn_timeout(tf); // execute timeout function
+                lst->fn_timeout(tf); // 执行超时函数
             }
-            // Listener has expired
+            // 监听器已过期
             cleanup_id_listener(tf, i, lst);
         }
     }

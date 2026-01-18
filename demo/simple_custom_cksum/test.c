@@ -8,27 +8,27 @@ TinyFrame *demo_tf;
 bool do_corrupt = false;
 
 /**
- * This function should be defined in the application code.
- * It implements the lowest layer - sending bytes to UART (or other)
+ * 此函数应在应用程序代码中定义。
+ * 它实现最底层 - 将字节发送到 UART（或其他）
  */
 void TF_WriteImpl(TinyFrame *tf, const uint8_t *buff, uint32_t len)
 {
     printf("--------------------\n");
-    printf("\033[32mTF_WriteImpl - sending frame:\033[0m\n");
+    printf("\033[32mTF_WriteImpl - 发送帧:\033[0m\n");
     
     uint8_t *xbuff = (uint8_t *)buff;    
     if (do_corrupt) {
-      printf("(corrupting to test checksum checking...)\n");
+      printf("(损坏以测试校验和检查...)\n");
       xbuff[8]++;
     }
     
     dumpFrame(xbuff, len);
 
-    // Send it back as if we received it
+    // 将其发回，就像我们接收到它一样
     TF_Accept(tf, xbuff, len);
 }
 
-/** An example listener function */
+/** 示例监听器函数 */
 TF_Result myListener(TinyFrame *tf, TF_Msg *msg)
 {
     dumpFrameInfo(msg);
@@ -37,7 +37,7 @@ TF_Result myListener(TinyFrame *tf, TF_Msg *msg)
 
 TF_Result testIdListener(TinyFrame *tf, TF_Msg *msg)
 {
-    printf("OK - ID Listener triggered for msg!\n");
+    printf("OK - 消息的 ID 监听器被触发！\n");
     dumpFrameInfo(msg);
     return TF_CLOSE;
 }
@@ -47,11 +47,11 @@ void main(void)
     TF_Msg msg;
     const char *longstr = "Lorem ipsum dolor sit amet.";
 
-    // Set up the TinyFrame library
-    demo_tf = TF_Init(TF_MASTER); // 1 = master, 0 = slave
+    // 设置 TinyFrame 库
+    demo_tf = TF_Init(TF_MASTER); // 1 = 主站, 0 = 从站
     TF_AddGenericListener(demo_tf, myListener);
 
-    printf("------ Simulate sending a message --------\n");
+    printf("------ 模拟发送消息 --------\n");
 
     TF_ClearMsg(&msg);
     msg.type = 0x22;
@@ -59,9 +59,9 @@ void main(void)
     msg.len = 16;
     TF_Send(demo_tf, &msg);
     
-    printf("This should fail:\n");
+    printf("这应该失败：\n");
     
-    // test checksums are tested
+    // 测试校验和被测试
     do_corrupt = true;    
     msg.type = 0x44;
     msg.data = (pu8) "Hello2";
@@ -70,7 +70,7 @@ void main(void)
 }
 
 
-// a made up custom checksum - just to test it's used and works
+// 一个编造的自定义校验和 - 只是为了测试它被使用并且工作正常
 
 TF_CKSUM TF_CksumStart(void)
 {

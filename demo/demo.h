@@ -1,5 +1,5 @@
 //
-// Created by MightyPork on 2017/10/15.
+// 由 MightyPork 于 2017/10/15 创建。
 //
 
 #ifndef TF_DEMO_H
@@ -13,13 +13,13 @@
 
 extern TinyFrame *demo_tf;
 
-/** Sleep and wait for ^C */
+/** 休眠并等待 ^C */
 void demo_sleep(void);
 
-/** Init server - DOES NOT init TinyFrame! */
+/** 初始化服务端 - 不初始化 TinyFrame！ */
 void demo_init(TF_Peer peer);
 
-/** Disconnect client from the server - can be called by a server-side callback */
+/** 从服务端断开客户端 - 可以由服务端回调调用 */
 void demo_disconn(void);
 
 #endif //TF_DEMO_H

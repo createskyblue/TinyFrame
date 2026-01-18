@@ -2,18 +2,18 @@
 #define PAYLOAD_BUILDER_H
 
 /**
- * PayloadBuilder, part of the TinyFrame utilities collection
+ * PayloadBuilder，TinyFrame 工具集合的一部分
  * 
- * (c) Ondřej Hruška, 2014-2017. MIT license.
+ * (c) Ondřej Hruška, 2014-2017. MIT 许可证。
  * 
- * The builder supports big and little endian which is selected when 
- * initializing it or by accessing the bigendian struct field.
+ * 构建器支持大端和小端序，在初始化时选择
+ * 或通过访问 bigendian 结构字段。
  * 
- * This module helps you with building payloads (not only for TinyFrame)
+ * 该模块帮助你构建负载（不仅用于 TinyFrame）
  *
- * The builder performs bounds checking and calls the provided handler when 
- * the requested write wouldn't fit. Use the handler to realloc / flush the buffer
- * or report an error.
+ * 构建器执行边界检查，当请求的写入无法容纳时调用
+ * 提供的处理程序。使用处理程序重新分配/刷新缓冲区
+ * 或报告错误。
  */
 
 #include <stdint.h>
@@ -24,87 +24,87 @@
 typedef struct PayloadBuilder_ PayloadBuilder;
 
 /**
- * Full buffer handler. 
+ * 满缓冲区处理程序。 
  * 
- * 'needed' more bytes should be written but the end of the buffer was reached.
+ * 'needed' 更多字节应该写入但已达到缓冲区末尾。
  * 
- * Return true if the problem was solved (e.g. buffer was flushed and the 
- * 'current' pointer moved to the beginning).
+ * 如果问题已解决（例如：缓冲区已刷新且
+ * 'current' 指针移动到开头），则返回 true。
  * 
- * If false is returned, the 'ok' flag on the struct is set to false
- * and all following writes are discarded.
+ * 如果返回 false，则结构体上的 'ok' 标志设置为 false
+ * 并且所有后续的写入将被丢弃。
  */
 typedef bool (*pb_full_handler)(PayloadBuilder *pb, uint32_t needed);
 
 struct PayloadBuilder_ {
-    uint8_t *start;   //!< Pointer to the beginning of the buffer
-    uint8_t *current; //!< Pointer to the next byte to be read
-    uint8_t *end;     //!< Pointer to the end of the buffer (start + length)
-    pb_full_handler full_handler; //!< Callback for buffer overrun
-    bool bigendian;   //!< Flag to use big-endian parsing
-    bool ok;          //!< Indicates that all reads were successful
+    uint8_t *start;   //!< 指向缓冲区开头的指针
+    uint8_t *current; //!< 指向下一个要读取的字节的指针
+    uint8_t *end;     //!< 指向缓冲区末尾的指针（start + length）
+    pb_full_handler full_handler; //!< 缓冲区溢出的回调
+    bool bigendian;   //!< 使用大端序解析的标志
+    bool ok;          //!< 表示所有读取都成功
 };
 
-// --- initializer helper macros ---
+// --- 初始化辅助宏 ---
 
-/** Start the builder. */
-#define pb_start_e(buf, capacity, bigendian, full_handler) ((PayloadBuilder){buf, buf, (buf)+(capacity), full_handler, bigendian, 1})
+/** 启动构建器。 */
+#define pb_start_e(buf, capacity, bigendian, full_handler) ((PayloadBuilder){buf, buf, (buf)+(capacity), full_handler, bigendian,1})
 
-/** Start the builder in big-endian mode */
-#define pb_start_be(buf, capacity, full_handler) pb_start_e(buf, capacity, 1, full_handler)
+/** 以大端序模式启动构建器 */
+#define pb_start_be(buf, capacity, full_handler) pb_start_e(buf, capacity,1, full_handler)
 
-/** Start the builder in little-endian mode */
-#define pb_start_le(buf, capacity, full_handler) pb_start_e(buf, capacity, 0, full_handler)
+/** 以小端序模式启动构建器 */
+#define pb_start_le(buf, capacity, full_handler) pb_start_e(buf, capacity,0, full_handler)
 
-/** Start the parser in little-endian mode (default) */
+/** 以小端序模式启动解析器（默认） */
 #define pb_start(buf, capacity, full_handler) pb_start_le(buf, capacity, full_handler)
 
-// --- utilities ---
+// --- 工具函数 ---
 
-/** Get already used bytes count */
+/** 获取已使用的字节数 */
 #define pb_length(pb) ((pb)->current - (pb)->start)
 
-/** Reset the current pointer to start */
+/** 将当前指针重置为开头 */
 #define pb_rewind(pb) do { pb->current = pb->start; } while (0)
 
 
-/** Write from a buffer */
+/** 从缓冲区写入 */
 bool pb_buf(PayloadBuilder *pb, const uint8_t *buf, uint32_t len);
 
-/** Write a zero terminated string */
+/** 写入零终止字符串 */
 bool pb_string(PayloadBuilder *pb, const char *str);
 
-/** Write uint8_t to the buffer */
+/** 将 uint8_t 写入缓冲区 */
 bool pb_u8(PayloadBuilder *pb, uint8_t byte);
 
-/** Write boolean to the buffer. */
+/** 将布尔值写入缓冲区。 */
 static inline bool pb_bool(PayloadBuilder *pb, bool b)
 {
     return pb_u8(pb, (uint8_t) b);
 }
 
-/** Write uint16_t to the buffer. */
+/** 将 uint16_t 写入缓冲区。 */
 bool pb_u16(PayloadBuilder *pb, uint16_t word);
 
-/** Write uint32_t to the buffer. */
+/** 将 uint32_t 写入缓冲区。 */
 bool pb_u32(PayloadBuilder *pb, uint32_t word);
 
-/** Write int8_t to the buffer. */
+/** 将 int8_t 写入缓冲区。 */
 bool pb_i8(PayloadBuilder *pb, int8_t byte);
 
-/** Write char (int8_t) to the buffer. */
+/** 将 char（int8_t）写入缓冲区。 */
 static inline bool pb_char(PayloadBuilder *pb, char c)
 {
     return pb_i8(pb, c);
 }
 
-/** Write int16_t to the buffer. */
+/** 将 int16_t 写入缓冲区。 */
 bool pb_i16(PayloadBuilder *pb, int16_t word);
 
-/** Write int32_t to the buffer. */
+/** 将 int32_t 写入缓冲区。 */
 bool pb_i32(PayloadBuilder *pb, int32_t word);
 
-/** Write 4-byte float to the buffer. */
+/** 将 4 字节浮点数写入缓冲区。 */
 bool pb_float(PayloadBuilder *pb, float f);
 
 #endif // PAYLOAD_BUILDER_H
