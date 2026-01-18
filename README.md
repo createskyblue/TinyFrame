@@ -83,9 +83,40 @@ TinyFrame 使用两个数据缓冲区：一个小的发送缓冲区和一个较�
 
 使用 `*_Multipart()` 发送函数，还可以将帧头和负载拆分为多个函数调用，允许应用程序例如即时生成负载。
 
-与发送缓冲区相反，接收缓冲区必须足够大以包含整个帧。这是因为在处理帧之前必须验证最终校验和。
- 
-如果需要大于可能接收缓冲区大小的帧（例如在 RAM 较小的嵌入式系统中），建议在更高级别实现多消息传输机制，并分块发送数据。
+#### ⚠️ 重要限制：不支持流式传输
+
+**接收缓冲区必须足够大以包含整个帧。这是因为在处理帧之前必须验证最终校验和。**
+
+- `*_Multipart()` 函数**仅影响发送方式**，允许分片调用发送函数
+- **接收端仍需一次性接收完整帧**，存储在 `tf->data[]` 缓冲区中
+- 缓冲区大小由 `TF_MAX_PAYLOAD_RX` 决定，超过此大小的帧将被丢弃
+
+#### 大数据传输方案
+
+如果需要传输大于接收缓冲区容量的数据（例如在 RAM 较小的嵌入式系统中），**必须在应用层实现多消息传输机制**：
+
+```c
+// 发送端：分块发送大文件
+while (file_remaining > 0) {
+    TF_Msg msg;
+    TF_ClearMsg(&msg);
+    msg.type = TYPE_FILE_CHUNK;
+    msg.len = min(CHUNK_SIZE, file_remaining);
+    msg.data = file_ptr;
+    TF_Send(tf, &msg);
+    
+    file_ptr += msg.len;
+    file_remaining -= msg.len;
+}
+
+// 接收端：处理每个数据块
+TF_Result chunkListener(TinyFrame *tf, TF_Msg *msg) {
+    write_to_file(output_file, msg->data, msg->len);
+    return TF_STAY;
+}
+```
+
+这样每帧只需要小缓冲区，可以传输任意大小的文件。
 
 ## 使用提示
 
